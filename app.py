@@ -1,33 +1,37 @@
 import streamlit as st
+import pandas as pd
 import numpy as np
-import pickle
-from pathlib import Path
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import train_test_split
 
 # ---------------------------
-# Load trained model
+# Load data and train model (cached)
 # ---------------------------
 @st.cache_resource
-def load_model():
-    pkl_path = Path("icecream_dt_regressor.pkl")  # must be in same folder as app.py
+def load_and_train():
+    # Ice Cream.csv must be in the same folder as app.py
+    df = pd.read_csv("Ice Cream.csv")
 
-    if not pkl_path.exists():
-        st.error(
-            f"Model file '{pkl_path}' not found.\n\n"
-            "Make sure icecream_dt_regressor.pkl is in the same directory as app.py."
-        )
-        st.stop()
+    X = df[["Temperature"]].values
+    y = df[["Revenue"]].values
 
-    with open(pkl_path, "rb") as f:
-        model = pickle.load(f)
-    return model
+    # You can also keep a train/test split if you want, but for prediction
+    # it is fine to train on all data
+    model = DecisionTreeRegressor(random_state=42)
+    model.fit(X, y)
 
-model = load_model()
+    return model, df
+
+model, df = load_and_train()
 
 # ---------------------------
 # Streamlit UI
 # ---------------------------
-st.title("Ice Cream Sales Predictor")
-st.write("Predict ice‑cream revenue from temperature using a trained Decision Tree Regressor.")
+st.title("Ice Cream Revenue Predictor")
+st.write("Predict ice‑cream revenue from temperature using a Decision Tree Regressor.")
+
+st.subheader("Dataset preview")
+st.dataframe(df.head())
 
 temp = st.number_input(
     "Temperature (°C)",
@@ -38,11 +42,9 @@ temp = st.number_input(
 )
 
 if st.button("Predict revenue"):
-    # Model expects 2D array: [[temperature]]
-    X_new = np.array([[temp]])
+    X_new = np.array([[temp]])            # shape (1, 1)
     y_pred = model.predict(X_new)
 
-    # y was 2D during training (N,1), so prediction may be shape (1,1)
-    revenue = float(np.ravel(y_pred)[0])
+    revenue = float(np.ravel(y_pred)[0])  # handle possible (1,1) output
 
     st.success(f"Predicted revenue: {revenue:.2f}")
